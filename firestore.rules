@@ -1,0 +1,267 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: festivals
+    // Fields:
+    //   - name: string (required, < 100)
+    //   - date: string (required, ISO date)
+    //   - endDate: string (optional, ISO date)
+    //   - fees: number (required, > 0)
+    //   - isOpen: bool (required)
+    //   - order: number (optional)
+    //   - supervisorId: string (optional)
+    //
+    // Collection: users
+    // Fields:
+    //   - email: string (required, email format)
+    //   - role: string (required, 'admin'|'supervisor'|'user')
+    //   - displayName: string (optional, < 100)
+    //   - photoURL: string (optional, URL)
+    //   - assignedFestivalId: string (optional)
+    //
+    // Collection: registrations
+    // Fields:
+    //   - festivalId: string (required)
+    //   - festivalName: string (required, < 100)
+    //   - groomName: string (required, < 100)
+    //   - groomId: string (required, 10 digits)
+    //   - groomPhone: string (required, 10 digits)
+    //   - status: string (required, 'pending'|'approved'|'rejected')
+    //   - userId: string (required)
+    //   ... (other fields need validation)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == "butaqi2012@gmail.com" ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserProfile().role == 'admin')
+      );
+    }
+    
+    function isSupervisor() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             getUserProfile().role == 'supervisor';
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function validString(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+             request.resource.data[field].size() >= minLen &&
+             request.resource.data[field].size() <= maxLen;
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidTasks(tasks) {
+      return tasks is list && tasks.size() <= 20;
+    }
+    
+    function isValidEvaluation(evaluation) {
+      return evaluation is map && 
+             evaluation.keys().hasAll(['rating', 'createdAt']) &&
+             evaluation.keys().hasOnly(['rating', 'comment', 'createdAt']) &&
+             evaluation.rating is int && evaluation.rating >= 1 && evaluation.rating <= 5 &&
+             (!('comment' in evaluation) || (evaluation.comment is string && evaluation.comment.size() < 500));
+    }
+
+    function isValidRegistration(data) {
+      let requiredFields = [
+        'festivalId', 'festivalName', 'groomName', 'groomId', 'groomPhone', 'groomEmail', 
+        'brideName', 'brideId', 'bridePhone', 'guardianName', 'guardianPhone',
+        'groomGuardianName', 'groomGuardianPhone',
+        'status', 'userId', 'createdAt', 'updatedAt', 'attachments'
+      ];
+      return data.keys().hasAll(requiredFields) &&
+             data.festivalName is string && data.festivalName.size() < 100 &&
+             data.groomName is string && data.groomName.size() < 100 &&
+             data.groomId is string && (data.groomId.size() >= 9 && data.groomId.size() <= 15) &&
+             data.groomPhone is string && (data.groomPhone.size() >= 9 && data.groomPhone.size() <= 15) &&
+             data.groomEmail is string && isValidEmail(data.groomEmail) &&
+             data.status in ['pending', 'approved', 'rejected', 'needs_info'] &&
+             data.userId is string &&
+             data.attachments is list &&
+             (!('tasks' in data) || isValidTasks(data.tasks)) &&
+             (!('currentStep' in data) || (data.currentStep is int && data.currentStep >= 0 && data.currentStep <= 3)) &&
+             (!('evaluation' in data) || isValidEvaluation(data.evaluation));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Global Settings
+    match /settings/global {
+      allow read: if true; // Publicly readable
+      allow write: if isAdmin();
+    }
+
+    // Festivals
+    match /festivals/{festivalId} {
+      allow read: if true; // Publicly readable
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isSupervisor() && getUserProfile().assignedFestivalId == festivalId) || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registrationCount']) &&
+        request.resource.data.registrationCount == resource.data.registrationCount + 1
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Users
+    match /users/{userId} {
+      allow get, list: if true; 
+      allow create: if isAdmin() || (isOwner(userId) && request.auth.token.email == "butaqi2012@gmail.com" && request.resource.data.role == 'admin') || (isOwner(userId) && (request.resource.data.role == 'user' || request.resource.data.role == 'supervisor'));
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Registrations
+    match /registrations/{regId} {
+      // Allow get (lookup by ID) for portal and authorized users
+      allow get: if isAdmin() || isSupervisor() || isOwner(resource.data.userId) || 
+                       (resource != null && (
+                         ('groomId' in resource.data && 'groomPhone' in resource.data) ||
+                         ('groomId' in resource.data) || 
+                         ('brideId' in resource.data)
+                       ));
+      
+      // Allow list (query)
+      allow list: if isAdmin() || isSupervisor();
+      allow list: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow list: if (request.query.limit != null && request.query.limit <= 5);
+      
+      allow create: if (isAuthenticated() ? request.resource.data.userId == request.auth.uid : request.resource.data.userId == 'guest') && isValidRegistration(request.resource.data);
+      
+      allow update: if isAdmin() || 
+                       (isSupervisor() && getUserProfile().assignedFestivalId == resource.data.festivalId) ||
+                       isOwner(resource.data.userId) ||
+                       (resource != null && 'groomId' in resource.data && 'groomPhone' in resource.data && 
+                        request.resource.data.groomId == resource.data.groomId && 
+                        request.resource.data.groomPhone == resource.data.groomPhone &&
+                        isValidRegistration(request.resource.data));
+      
+      allow delete: if isAdmin() || (isSupervisor() && getUserProfile().assignedFestivalId == resource.data.festivalId);
+    }
+
+    // Archived Registrations
+    match /archived_registrations/{regId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Tasks
+    match /tasks/{taskId} {
+      allow read: if isAdmin() || isSupervisor();
+      allow create: if isAdmin() || isSupervisor();
+      allow update: if isAdmin() || (isSupervisor() && request.auth.uid == resource.data.assignedTo);
+      allow delete: if isAdmin();
+    }
+
+    // Notifications
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.recipientId;
+      allow create: if true; // Allow guests to trigger notifications (e.g. for new registrations)
+      allow update: if isAuthenticated() && request.auth.uid == resource.data.recipientId;
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.recipientId;
+    }
+
+    // Audit Logs
+    match /audit_logs/{logId} {
+      allow get: if isAdmin() || isSupervisor() || 
+                    (resource.data.registrationId != null && 
+                     exists(/databases/$(database)/documents/registrations/$(resource.data.registrationId)));
+      allow list: if isAdmin() || isSupervisor() || 
+                    (resource.data.registrationId != null && 
+                     exists(/databases/$(database)/documents/registrations/$(resource.data.registrationId)));
+      allow create: if true; // Allow guests to record audit logs (e.g. for edits)
+      allow update, delete: if false;
+    }
+
+    // Gallery
+    match /gallery/{imageId} {
+      allow read: if true;
+      allow write: if isAdmin() || isSupervisor();
+    }
+
+    // Testimonials
+    match /testimonials/{testimonialId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin() || isSupervisor();
+    }
+
+    // Ads
+    match /ads/{adId} {
+      allow read: if true; // Publicly readable
+      allow write: if isAdmin() || isSupervisor();
+    }
+
+    // Vendors & Success Partners
+    match /vendors/{vendorId} {
+      allow read: if true; // Visible to everyone to check coupons/partners
+      allow write: if isAdmin() || isSupervisor();
+    }
+
+    // Courses & Training Schedules
+    match /courses/{courseId} {
+      allow read: if true; // Publicly readable for schedules
+      allow write: if isAdmin() || isSupervisor();
+    }
+
+    // Course Attendance Tracking
+    match /course_attendance/{attendanceId} {
+      allow read: if true; // Visible to grooms/staff to verify certificates and presence
+      allow write: if isAdmin() || isSupervisor();
+    }
+
+    // Public Stats
+    match /public_stats/{document=**} {
+      allow read: if true; // Publicly readable
+      allow update: if isAdmin() || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total', 'pending', 'approved', 'rejected']) &&
+        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['total']) ? request.resource.data.total == resource.data.total + 1 : true) &&
+        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['pending']) ? request.resource.data.pending == resource.data.pending + 1 : true) &&
+        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['approved']) ? request.resource.data.approved == resource.data.approved + 1 : true) &&
+        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['rejected']) ? request.resource.data.rejected == resource.data.rejected + 1 : true)
+      );
+      allow create: if isAdmin() || (
+        request.resource.data.keys().hasOnly(['total', 'pending', 'approved', 'rejected']) &&
+        (!('total' in request.resource.data) || request.resource.data.total == 1) &&
+        (!('pending' in request.resource.data) || request.resource.data.pending == 1) &&
+        (!('approved' in request.resource.data) || request.resource.data.approved == 1) &&
+        (!('rejected' in request.resource.data) || request.resource.data.rejected == 1)
+      );
+      allow delete: if isAdmin();
+    }
+  }
+}

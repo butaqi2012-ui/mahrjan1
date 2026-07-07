@@ -1,0 +1,6 @@
+{
+  "name": "منصة تسجيل مهرجانات الزواج الجماعي - الأحساء",
+  "description": "موقع لتسجيل الراغبين في المشاركة في مهرجانات الزواج الجماعي التابعة للجمعية الخيرية لتيسير الزواج ورعاية الأسرة بالأحساء - فرع المنيزلة.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

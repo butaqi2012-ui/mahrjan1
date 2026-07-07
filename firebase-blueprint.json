@@ -1,0 +1,461 @@
+{
+  "entities": {
+    "GlobalSettings": {
+      "title": "Global Settings",
+      "description": "Global configuration for the application",
+      "type": "object",
+      "properties": {
+        "siteOpen": {
+          "type": "boolean",
+          "description": "Whether the entire site is open for registrations"
+        },
+        "bankName": {
+          "type": "string",
+          "description": "Name of the association's bank"
+        },
+        "accountNumber": {
+          "type": "string",
+          "description": "Association's bank account number"
+        },
+        "iban": {
+          "type": "string",
+          "description": "Association's IBAN"
+        },
+        "showAds": {
+          "type": "boolean",
+          "description": "Whether to show the advertisement section"
+        },
+        "adInterval": {
+          "type": "number",
+          "description": "Interval in seconds for ad rotation"
+        },
+        "terms": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Registration terms and conditions"
+        },
+        "showTermsStep": {
+          "type": "boolean",
+          "description": "Whether to show the terms and conditions step in registration"
+        }
+      },
+      "required": ["siteOpen"]
+    },
+    "Ad": {
+      "title": "Advertisement",
+      "description": "An advertisement banner",
+      "type": "object",
+      "properties": {
+        "imageUrl": {
+          "type": "string",
+          "description": "External URL of the advertisement image"
+        },
+        "linkUrl": {
+          "type": "string",
+          "description": "URL to redirect when the ad is clicked"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the advertisement"
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Whether the individual ad is active"
+        },
+        "startDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Start date and time for the ad to appear"
+        },
+        "endDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "End date and time for the ad to disappear"
+        },
+        "order": {
+          "type": "number",
+          "description": "Order of appearance in the carousel"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of creation"
+        }
+      },
+      "required": ["imageUrl", "isActive", "createdAt"]
+    },
+    "Festival": {
+      "title": "Festival",
+      "description": "Details of a marriage festival",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the festival"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the festival"
+        },
+        "fees": {
+          "type": "number",
+          "description": "Registration fees for this festival"
+        },
+        "isOpen": {
+          "type": "boolean",
+          "description": "Whether registration is open for this festival"
+        },
+        "supervisorId": {
+          "type": "string",
+          "description": "UID of the assigned supervisor"
+        }
+      },
+      "required": ["name", "date", "fees", "isOpen"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User roles and permissions",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "User's email address"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "supervisor"],
+          "description": "User's role in the system"
+        },
+        "assignedFestivalId": {
+          "type": "string",
+          "description": "ID of the festival assigned to this supervisor"
+        }
+      },
+      "required": ["email", "role"]
+    },
+    "Registration": {
+      "title": "Registration",
+      "description": "A registration request for a festival",
+      "type": "object",
+      "properties": {
+        "fullName": {
+          "type": "string",
+          "description": "Full name of the registrant"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Phone number of the registrant"
+        },
+        "groomId": {
+          "type": "string",
+          "description": "National ID of the groom"
+        },
+        "groomPhone": {
+          "type": "string",
+          "description": "Phone number of the groom"
+        },
+        "groomEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "Email address of the groom"
+        },
+        "festivalId": {
+          "type": "string",
+          "description": "ID of the festival registered for"
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string" },
+              "name": { "type": "string" },
+              "type": { "type": "string" },
+              "size": { "type": "number" }
+            }
+          },
+          "description": "List of uploaded attachments"
+        },
+        "paymentReceipt": {
+          "type": "object",
+          "properties": {
+            "url": { "type": "string" },
+            "name": { "type": "string" },
+            "type": { "type": "string" },
+            "size": { "type": "number" }
+          },
+          "description": "Uploaded bank transfer receipt"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected", "needs_info"],
+          "description": "Status of the registration"
+        },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "completed": { "type": "boolean" }
+            }
+          },
+          "description": "Checklist of tasks for the groom"
+        },
+        "evaluation": {
+          "type": "object",
+          "properties": {
+            "rating": { "type": "number" },
+            "comment": { "type": "string" },
+            "createdAt": { "type": "string", "format": "date-time" }
+          },
+          "description": "Service evaluation from the groom"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of registration"
+        }
+      },
+      "required": ["fullName", "phone", "festivalId", "status", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification for a user",
+      "type": "object",
+      "properties": {
+        "recipientId": {
+          "type": "string",
+          "description": "UID of the user receiving the notification"
+        },
+        "message": {
+          "type": "string",
+          "description": "Notification message"
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of notification"
+        },
+        "registrationId": {
+          "type": "string",
+          "description": "Related registration ID"
+        },
+        "read": {
+          "type": "boolean",
+          "description": "Whether the notification has been read"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of notification"
+        }
+      },
+      "required": ["recipientId", "message", "type", "read", "createdAt"]
+    },
+    "AuditLog": {
+      "title": "Audit Log",
+      "description": "A record of an action performed by a user",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID of the user who performed the action"
+        },
+        "userName": {
+          "type": "string",
+          "description": "Name of the user who performed the action"
+        },
+        "action": {
+          "type": "string",
+          "description": "Description of the action performed"
+        },
+        "registrationId": {
+          "type": "string",
+          "description": "ID of the related registration"
+        },
+        "oldValue": {
+          "type": "string",
+          "description": "Previous value of the changed field"
+        },
+        "newValue": {
+          "type": "string",
+          "description": "New value of the changed field"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of the action"
+        }
+      },
+      "required": ["userId", "userName", "action", "registrationId", "createdAt"]
+    },
+    "GalleryImage": {
+      "title": "Gallery Image",
+      "description": "An image in the public gallery",
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "URL of the image"
+        },
+        "name": {
+          "type": "string",
+          "description": "Original name of the image"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of upload"
+        }
+      },
+      "required": ["url", "createdAt"]
+    },
+    "Testimonial": {
+      "title": "Testimonial",
+      "description": "A success story from a couple",
+      "type": "object",
+      "properties": {
+        "coupleName": {
+          "type": "string",
+          "description": "Name of the couple"
+        },
+        "story": {
+          "type": "string",
+          "description": "The success story content"
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Whether the testimonial is visible on the main page"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of creation"
+        }
+      },
+      "required": ["coupleName", "story", "isActive", "createdAt"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A task assigned to a supervisor",
+      "type": "object",
+      "properties": {
+        "registrationId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "assignedTo": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "in-progress", "completed"] },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["registrationId", "title", "assignedTo", "status", "createdAt"]
+    },
+    "Vendor": {
+      "title": "Vendor",
+      "description": "A partner/vendor offering discounts to couples",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "categoryLabel": { "type": "string" },
+        "discount": { "type": "string" },
+        "desc": { "type": "string" },
+        "code": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "category", "categoryLabel", "discount", "desc", "code", "phone", "address", "createdAt"]
+    },
+    "Course": {
+      "title": "Training Course",
+      "description": "A pre-marriage training course or lecture",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "lecturer": { "type": "string" },
+        "location": { "type": "string" },
+        "heldType": { "type": "string", "enum": ["in_person", "online"], "description": "Whether the course is held in-person or remote/online" },
+        "meetingLink": { "type": "string", "description": "Broadcasting platform or joining URL if online" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "date", "time", "lecturer", "location", "createdAt"]
+    },
+    "CourseAttendance": {
+      "title": "Course Attendance",
+      "description": "Attendance record of a groom for a training course",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string" },
+        "registrationId": { "type": "string" },
+        "groomId": { "type": "string" },
+        "groomName": { "type": "string" },
+        "attended": { "type": "boolean" },
+        "attendanceDate": { "type": "string", "format": "date-time" },
+        "markedBy": { "type": "string" }
+      },
+      "required": ["courseId", "registrationId", "groomId", "groomName", "attended", "attendanceDate"]
+    }
+  },
+  "firestore": {
+    "/settings/global": {
+      "schema": "GlobalSettings",
+      "description": "Global application settings"
+    },
+    "/festivals/{festivalId}": {
+      "schema": "Festival",
+      "description": "Collection of festivals"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and roles"
+    },
+    "/registrations/{registrationId}": {
+      "schema": "Registration",
+      "description": "Collection of registrations"
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Collection of tasks"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Collection of notifications"
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Collection of audit logs"
+    },
+    "/gallery/{imageId}": {
+      "schema": "GalleryImage",
+      "description": "Collection of gallery images"
+    },
+    "/testimonials/{testimonialId}": {
+      "schema": "Testimonial",
+      "description": "Collection of success stories"
+    },
+    "/ads/{adId}": {
+      "schema": "Ad",
+      "description": "Collection of advertisements"
+    },
+    "/vendors/{vendorId}": {
+      "schema": "Vendor",
+      "description": "Collection of success partners and discount vendors"
+    },
+    "/courses/{courseId}": {
+      "schema": "Course",
+      "description": "Collection of pre-marriage training courses"
+    },
+    "/course_attendance/{attendanceId}": {
+      "schema": "CourseAttendance",
+      "description": "Collection of groom attendance records"
+    },
+    "/archived_registrations/{registrationId}": {
+      "schema": "Registration",
+      "description": "Archived registrations from previous years"
+    }
+  }
+}
